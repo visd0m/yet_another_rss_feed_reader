@@ -1,8 +1,3 @@
-# test_flutter
+# yet_another_rss_feed_reader
 
-A new Flutter project.
-
-## Getting Started
-
-For help getting started with Flutter, view our online
-[documentation](https://flutter.io/).
+Simple rss feed reader app sample project.
