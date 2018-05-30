@@ -5,13 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-final Map<String, String> tagsByUrls = {
-  "https://hnrss.org/frontpage": "HN",
-  "http://www.ansa.it/sito/ansait_rss.xml": "ANSA",
-//  "https://feedpress.me/saggiamente": "SAGGIAMENTE",
-  "https://www.everyeye.it/feed_news_rss.asp": "EVERYEYE"
-};
-
 void main() => runApp(new MyApp());
 
 // ========================= APP
@@ -20,12 +13,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return new MaterialApp(
-      title: 'Yet another feeder',
-      theme: new ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: new MyHomePage(title: 'Yet another rss feed reader'),
-    );
+        title: 'Yet another feeder',
+        theme: new ThemeData(
+          primarySwatch: Colors.blue,
+        ),
+        home: new MyHomePage(title: 'Yet another rss feed reader'));
   }
 }
 
@@ -45,41 +37,46 @@ class MyHomePage extends StatefulWidget {
 // ========================= HOME STATE
 
 class _HomeState extends State<MyHomePage> {
-  var feeder;
   Map<String, List<Widget>> elemsByUrl = {};
+  Map<String, String> tagsByUrls;
 
   @override
   void initState() {
     super.initState();
 
-    feeder = new Feeder();
+    tagsByUrls = _loadSubscriptions();
 
     tagsByUrls.keys.forEach((u) => elemsByUrl.putIfAbsent(u, () => []));
-    tagsByUrls.keys.forEach(
-        (url) => feeder.getFeed(url).then((feed) => _fillList(feed, url)));
+    tagsByUrls.keys
+        .forEach((url) => _getFeed(url).then((feed) => _fillList(feed, url)));
   }
 
   @override
   Widget build(BuildContext context) {
-    List<RefreshIndicator> tabViews =
-        tagsByUrls.keys.map((u) => _getTabView(u, _getRefresher(u))).toList();
-
-    List<Tab> tabs =
-        tagsByUrls.keys.map((u) => new Tab(text: tagsByUrls[u])).toList();
-
     return new DefaultTabController(
         length: tagsByUrls.keys.length,
         child: new Scaffold(
             appBar: new AppBar(
               title: new Text(widget.title),
-              bottom: new TabBar(tabs: tabs),
+              bottom: new TabBar(
+                  tabs: tagsByUrls.keys
+                      .map((u) => new Tab(text: tagsByUrls[u]))
+                      .toList()),
             ),
-            body: new TabBarView(children: tabViews)));
+            body: new Builder(builder: (BuildContext context) {
+              return new TabBarView(
+                  children: tagsByUrls.keys
+                      .map((u) => _getTabView(u, _getRefresher(u, context)))
+                      .toList());
+            })));
   }
 
-  Future<Null> Function() _getRefresher(String url) {
+  Future<Null> Function() _getRefresher(String url, BuildContext context) {
     return () async {
-      feeder.getFeed(url).then((feed) => _fillList(feed, url));
+      _getFeed(url).then((feed) => _fillList(feed, url), onError: (error) {
+        Scaffold.of(context).showSnackBar(new SnackBar(
+            content: new Text("error fetching feed $url, error: $error")));
+      });
       return null;
     };
   }
@@ -103,23 +100,23 @@ class _HomeState extends State<MyHomePage> {
     });
   }
 
-  Future<Card> _getFeedItemView(FeedItem feedItem) async {
-    return new Card(
-        child: new InkWell(
-            onTap: () async => await launch(feedItem.link),
-            child: new Container(
-                padding: EdgeInsets.all(8.0),
-                child: new Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [new Text("${feedItem.title}")]))));
+  Future<Widget> _getFeedItemView(FeedItem feedItem) async {
+    return new ListTile(
+        title: new Text(feedItem.title),
+        subtitle: new Text(feedItem.pubDate),
+        onTap: () async => await launch(feedItem.link));
   }
-}
 
-// ========================= FEEDER
+  Map<String, String> _loadSubscriptions() {
+    return {
+      "https://hnrss.org/frontpage": "HN",
+      "http://www.ansa.it/sito/ansait_rss.xml": "ANSA",
+      "https://feedpress.me/saggiamente": "SAGGIAMENTE",
+      "https://www.everyeye.it/feed_news_rss.asp": "EVERYEYE"
+    };
+  }
 
-class Feeder {
-  Future getFeed(String url) async {
+  Future _getFeed(String url) async {
     print("fetching $url ... ");
     var response = await get(url);
     print("fetched with code: ${response.statusCode}");
