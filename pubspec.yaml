@@ -5,6 +5,7 @@ dependencies:
   feedparser: "^0.0.2"
   http: ^0.11.3+16
   url_launcher: 3.0.1
+  path_provider: 0.4.1
 
   flutter:
     sdk: flutter

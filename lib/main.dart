@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return new MaterialApp(
-        title: 'Yet another feeder',
+        title: 'Yet another rss feed reader',
         theme: new ThemeData(
           primarySwatch: Colors.blue,
         ),
@@ -37,74 +37,95 @@ class MyHomePage extends StatefulWidget {
 // ========================= HOME STATE
 
 class _HomeState extends State<MyHomePage> {
-  Map<String, List<Widget>> elemsByUrl = {};
-  Map<String, String> tagsByUrls;
+  List<Widget> _feedItemViews = [];
+  String _currentUrl;
+
+  Map<String, String> _tagsByUrls;
 
   @override
   void initState() {
     super.initState();
 
-    tagsByUrls = _loadSubscriptions();
+    _tagsByUrls = _loadSubscriptions();
 
-    tagsByUrls.keys.forEach((u) => elemsByUrl.putIfAbsent(u, () => []));
-    tagsByUrls.keys
-        .forEach((url) => _getFeed(url).then((feed) => _fillList(feed, url)));
+    _currentUrl = _tagsByUrls.keys.first;
+    print("default main view url: $_currentUrl");
+
+    _reloadFeedItems().then((_) => null);
   }
 
   @override
   Widget build(BuildContext context) {
-    return new DefaultTabController(
-        length: tagsByUrls.keys.length,
-        child: new Scaffold(
-            appBar: new AppBar(
-              title: new Text(widget.title),
-              bottom: new TabBar(
-                  tabs: tagsByUrls.keys
-                      .map((u) => new Tab(text: tagsByUrls[u]))
-                      .toList()),
-            ),
-            body: new Builder(builder: (BuildContext context) {
-              return new TabBarView(
-                  children: tagsByUrls.keys
-                      .map((u) => _getTabView(u, _getRefresher(u, context)))
-                      .toList());
-            })));
-  }
-
-  Future<Null> Function() _getRefresher(String url, BuildContext context) {
-    return () async {
-      _getFeed(url).then((feed) => _fillList(feed, url), onError: (error) {
-        Scaffold.of(context).showSnackBar(new SnackBar(
-            content: new Text("error fetching feed $url, error: $error")));
-      });
-      return null;
-    };
-  }
-
-  RefreshIndicator _getTabView(String url, Future<Null> refresher()) {
-    return new RefreshIndicator(
-        child: new ListView(
-          children: elemsByUrl[url],
+    List<Widget> drawerEntries = [
+      new DrawerHeader(
+        child: new Text('Feeds', style: new TextStyle(color: Colors.white)),
+        decoration: new BoxDecoration(
+          color: Colors.blue,
         ),
-        onRefresh: refresher);
+      )
+    ];
+    _tagsByUrls.keys.forEach((u) => drawerEntries.add(
+          new ListTile(
+            title: new Text(_tagsByUrls[u]),
+            onTap: () async {
+              _currentUrl = u;
+//              _currentTitle = _tagsByUrls[u];
+              Navigator.pop(context);
+              await _reloadFeedItems();
+            },
+          ),
+        ));
+
+    return new Scaffold(
+      drawer: new Drawer(
+        child: new ListView(
+          padding: EdgeInsets.zero,
+          children: drawerEntries,
+        ),
+      ),
+      appBar: new AppBar(title: new Text(widget.title)),
+      body: new RefreshIndicator(
+        child: getFeedListView(),
+        onRefresh: _reloadFeedItems,
+      ),
+      floatingActionButton: new FloatingActionButton(
+        child: new Icon(Icons.rss_feed),
+        onPressed: () => {},
+      ),
+    );
   }
 
-  _fillList(Feed feed, String url) {
-    List<Widget> widgets = [];
+  Future<Null> _reloadFeedItems() async {
+    setState(() {
+      _feedItemViews.clear();
+    });
 
-    feed.items.forEach(
-        (feedItem) async => widgets.add(await _getFeedItemView(feedItem)));
+    Feed feed = await _getFeed(_currentUrl);
 
     setState(() {
-      elemsByUrl[url] = widgets;
+      feed.items.forEach((item) => _feedItemViews.add(_getFeedItemView(item)));
+      print("updated #${_feedItemViews.length} items");
     });
+
+    return null;
   }
 
-  Future<Widget> _getFeedItemView(FeedItem feedItem) async {
+  Widget getFeedListView() {
+    print("building main view with #${_feedItemViews.length}");
+
+    return new ListView.builder(
+      itemCount: _feedItemViews.length,
+      itemBuilder: (BuildContext context, int position) =>
+          _feedItemViews[position],
+    );
+  }
+
+  Widget _getFeedItemView(FeedItem feedItem) {
     return new ListTile(
-        title: new Text(feedItem.title),
-        subtitle: new Text(feedItem.pubDate),
-        onTap: () async => await launch(feedItem.link));
+      title: new Text(feedItem.title),
+      subtitle: new Text(feedItem.pubDate),
+      onTap: () => launch(feedItem.link),
+    );
   }
 
   Map<String, String> _loadSubscriptions() {
