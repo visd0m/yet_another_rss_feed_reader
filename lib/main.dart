@@ -1,15 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:feedparser/feedparser.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:uuid/uuid.dart';
-
-Uuid uuid = new Uuid();
+import 'package:yet_another_rss_feed_reader/feed.dart';
+import 'package:yet_another_rss_feed_reader/subscription.dart';
 
 void main() => runApp(new MyApp());
 
@@ -42,16 +37,18 @@ class MyHomePage extends StatefulWidget {
 // ========================= HOME STATE
 
 class _HomeState extends State<MyHomePage> {
-  List<Widget> _feedItemViews = [];
   String _currentUrl;
-
+  List<Widget> _feedItemViews = [];
   Map<String, dynamic> _tagsByUrls = {};
+
+  SubscriptionService subscriptionService = new SubscriptionService();
+  Feeder feeder = new Feeder();
 
   @override
   void initState() {
     super.initState();
 
-    _loadSubscriptions().then((value) {
+    subscriptionService.loadSubscriptions().then((value) {
       _tagsByUrls = value;
 
       _currentUrl = _tagsByUrls.keys.first;
@@ -88,15 +85,7 @@ class _HomeState extends State<MyHomePage> {
     );
   }
 
-  Future _safeReloadItems(BuildContext context) async {
-    try {
-      await _reloadFeedItems();
-    } catch (e) {
-      print("error loading feed: $e");
-      Scaffold.of(context).showSnackBar(
-          new SnackBar(content: new Text("error loading feed: $e")));
-    }
-  }
+  // ========================= DRAWER
 
   List<Widget> _getDrawerEntries(BuildContext context) {
     List<Widget> drawerEntries = [
@@ -124,9 +113,21 @@ class _HomeState extends State<MyHomePage> {
     return drawerEntries;
   }
 
+  // ========================= FEEDS
+
   Future _selectSubscription(String u) async {
     _currentUrl = u;
     await _reloadFeedItems();
+  }
+
+  Future _safeReloadItems(BuildContext context) async {
+    try {
+      await _reloadFeedItems();
+    } catch (e) {
+      print("error loading feed: $e");
+      Scaffold.of(context).showSnackBar(
+          new SnackBar(content: new Text("error loading feed: $e")));
+    }
   }
 
   Future<Null> _reloadFeedItems() async {
@@ -136,7 +137,7 @@ class _HomeState extends State<MyHomePage> {
       _feedItemViews.clear();
     });
 
-    Feed feed = await _getFeed(_currentUrl);
+    Feed feed = await feeder.getFeed(_currentUrl);
 
     setState(() {
       feed.items.forEach((item) => _feedItemViews.add(_getFeedItemView(item)));
@@ -163,60 +164,16 @@ class _HomeState extends State<MyHomePage> {
     );
   }
 
-  // ========================= FEEDS
-
-  Future _getFeed(String url) async {
-    print("fetching $url ... ");
-    var response = await get(url);
-    print("fetched with code: ${response.statusCode}");
-    return parse(response.body);
-  }
-
-  // ========================= SAVE/LOAD SUBSCRIPTIONS
-
-  _saveSubscription(Map<String, dynamic> subscriptions) async {
-    print("saving subscriptions: $subscriptions");
-
-    Directory appDocDir = await getApplicationDocumentsDirectory();
-    String appDocPath = appDocDir.path;
-
-    File file = new File("$appDocPath/subscriptions.txt");
-    file.writeAsString(json.encode(subscriptions));
-  }
-
-  Future<Map<String, dynamic>> _loadSubscriptions() async {
-    Directory appDocDir = await getApplicationDocumentsDirectory();
-    String appDocPath = appDocDir.path;
-    String filePath = "$appDocPath/subscriptions.txt";
-
-    Map<String, dynamic> subscriptions = {
-      "https://hnrss.org/frontpage": "HN",
-      "http://www.ansa.it/sito/ansait_rss.xml": "ANSA",
-      "https://feedpress.me/saggiamente": "SAGGIAMENTE",
-      "https://www.everyeye.it/feed_news_rss.asp": "EVERYEYE"
-    };
-
-    if (FileSystemEntity.typeSync(filePath) != FileSystemEntityType.notFound) {
-      print("saved subscriptions found");
-
-      File file = new File(filePath);
-      String jsonSubscriptions = await file.readAsString();
-      subscriptions = json.decode(jsonSubscriptions);
-    } else {
-      _saveSubscription(subscriptions);
-    }
-
-    print("loaded subscriptions: $subscriptions");
-    return subscriptions;
-  }
+  // ========================= SUBSCRIPTIONS
 
   void _addSubscription(_url, _tag, Future onSuccess(String url)) {
     if (_url != null && _tag != null) {
-      _getFeed(_url)
+      feeder
+          .getFeed(_url)
           .then((feed) => setState(() {
                 _tagsByUrls[_url] = _tag;
               }))
-          .then((_) => _saveSubscription(_tagsByUrls))
+          .then((_) => subscriptionService.saveSubscriptions(_tagsByUrls))
           .then((_) => onSuccess(_url))
           .catchError((error) {
         print("error fetching: $_url, abort saving subscription");
@@ -232,7 +189,7 @@ class _HomeState extends State<MyHomePage> {
       _feedItemViews.clear();
       _tagsByUrls.remove(u);
     });
-    await _saveSubscription(_tagsByUrls);
+    await subscriptionService.saveSubscriptions(_tagsByUrls);
   }
 
   // ========================= DIALOGS
