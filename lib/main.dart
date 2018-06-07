@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:feedparser/feedparser.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:yet_another_rss_feed_reader/feed.dart';
-import 'package:yet_another_rss_feed_reader/subscription.dart';
+import 'package:yet_another_rss_feed_reader/feeder.dart';
+import 'package:yet_another_rss_feed_reader/subscriper.dart';
 
 void main() => runApp(new MyApp());
 
@@ -41,7 +41,7 @@ class _HomeState extends State<MyHomePage> {
   List<Widget> _feedItemViews = [];
   Map<String, dynamic> _tagsByUrls = {};
 
-  SubscriptionService subscriptionService = new SubscriptionService();
+  Subscriber subscriptionService = new Subscriber();
   Feeder feeder = new Feeder();
 
   @override

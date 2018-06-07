@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-class SubscriptionService {
+class Subscriber {
   saveSubscriptions(Map<String, dynamic> subscriptions) async {
     print("saving subscriptions: $subscriptions");
 
