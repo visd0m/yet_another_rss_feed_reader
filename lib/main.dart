@@ -61,28 +61,30 @@ class _HomeState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return new Scaffold(
-      drawer: new Drawer(
-        child: new ListView(
-          padding: EdgeInsets.zero,
-          children: _getDrawerEntries(context),
+        drawer: new Drawer(
+          child: new ListView(
+            padding: EdgeInsets.zero,
+            children: _getDrawerEntries(context),
+          ),
         ),
-      ),
-      appBar: new AppBar(
-          title: new Text(_currentUrl != null ? _tagsByUrls[_currentUrl] : "")),
-      body: new Builder(builder: (BuildContext context) {
-        return new RefreshIndicator(
-          child: getFeedListView(),
-          onRefresh: () async {
-            await _safeReloadItems(context);
-          },
-        );
-      }),
-      floatingActionButton: new Builder(builder: (BuildContext context) {
-        return new FloatingActionButton(
+        appBar: new AppBar(
+            title: new Text(_currentUrl != null
+                ? _tagsByUrls[_currentUrl]
+                : "No feed selected")),
+        body: new Builder(builder: (BuildContext context) {
+          return new RefreshIndicator(
+            child: getFeedListView(),
+            onRefresh: () async {
+              await _safeReloadItems(context);
+            },
+          );
+        }),
+        floatingActionButton: new Builder(builder: (BuildContext context) {
+          return new FloatingActionButton(
             child: new Icon(Icons.rss_feed),
-            onPressed: () async => await _getAddSubscriptionDialog(context));
-      }),
-    );
+            onPressed: () async => await _getAddSubscriptionDialog(context),
+          );
+        }));
   }
 
   // ========================= DRAWER
@@ -166,7 +168,8 @@ class _HomeState extends State<MyHomePage> {
 
   // ========================= SUBSCRIPTIONS
 
-  void _addSubscription(_url, _tag, Future onSuccess(String url)) {
+  void _addSubscription(
+      _url, _tag, Future onSuccess(String url), BuildContext context) {
     if (_url != null && _tag != null) {
       feeder
           .getFeed(_url)
@@ -194,12 +197,12 @@ class _HomeState extends State<MyHomePage> {
 
   // ========================= DIALOGS
 
-  _getAddSubscriptionDialog(BuildContext context) async {
+  _getAddSubscriptionDialog(BuildContext scaffoldContext) async {
     var _tag;
     var _url;
 
     await showDialog(
-        context: context,
+        context: scaffoldContext,
         builder: (BuildContext context) {
           return new AlertDialog(
             title: new Text("Add subscription"),
@@ -231,7 +234,8 @@ class _HomeState extends State<MyHomePage> {
               new FlatButton(
                   onPressed: () async {
                     Navigator.pop(context);
-                    _addSubscription(_url, _tag, _selectSubscription);
+                    _addSubscription(
+                        _url, _tag, _selectSubscription, scaffoldContext);
                   },
                   child: new Text("ADD"))
             ],
