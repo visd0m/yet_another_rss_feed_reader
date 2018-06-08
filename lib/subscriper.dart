@@ -21,10 +21,10 @@ class Subscriber {
     String filePath = "$appDocPath/subscriptions.txt";
 
     Map<String, dynamic> subscriptions = {
-      "https://hnrss.org/frontpage": "HN",
-      "http://www.ansa.it/sito/ansait_rss.xml": "ANSA",
-      "https://feedpress.me/saggiamente": "SAGGIAMENTE",
-      "https://www.everyeye.it/feed_news_rss.asp": "EVERYEYE"
+      "https://hnrss.org/frontpage": "hn",
+      "http://www.ansa.it/sito/ansait_rss.xml": "ansa",
+      "https://feedpress.me/saggiamente": "saggiamente",
+      "https://www.everyeye.it/feed_news_rss.asp": "everyeye"
     };
 
     if (FileSystemEntity.typeSync(filePath) != FileSystemEntityType.notFound) {

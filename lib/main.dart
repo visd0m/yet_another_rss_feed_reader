@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return new MaterialApp(
         theme: new ThemeData(
-          primarySwatch: Colors.blueGrey,
+          primarySwatch: Colors.indigo,
         ),
         home: new MyHomePage(title: 'Yet another rss feed reader'));
   }
@@ -92,12 +92,21 @@ class _HomeState extends State<MyHomePage> {
   List<Widget> _getDrawerEntries(BuildContext context) {
     List<Widget> drawerEntries = [
       new DrawerHeader(
-        child: new Text(
-          'Subscriptions',
-          style: new TextStyle(fontSize: 18.0, color: Colors.white),
+        padding: new EdgeInsets.only(bottom: 16.0, left: 16.0),
+        curve: Curves.elasticIn,
+        child: new Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            new Text(
+              'Subscriptions',
+              style: new TextStyle(fontSize: 18.0, color: Colors.white),
+            ),
+          ],
         ),
         decoration: new BoxDecoration(
-          color: Colors.blueGrey,
+          color: Colors.indigo,
         ),
       ),
     ];
@@ -188,8 +197,10 @@ class _HomeState extends State<MyHomePage> {
 
   _deleteSubscription(String u) async {
     setState(() {
-      _currentUrl = null;
-      _feedItemViews.clear();
+      if (u == _currentUrl) {
+        _currentUrl = null;
+        _feedItemViews.clear();
+      }
       _tagsByUrls.remove(u);
     });
     await subscriptionService.saveSubscriptions(_tagsByUrls);
