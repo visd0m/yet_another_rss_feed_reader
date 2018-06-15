@@ -38,8 +38,12 @@ class MyHomePage extends StatefulWidget {
 
 class _HomeState extends State<MyHomePage> {
   String _currentUrl;
-  List<Widget> _feedItemViews = [];
   Map<String, dynamic> _tagsByUrls = {};
+
+  Feed _feed;
+  List<ListTile> _feedItemViews = [];
+
+  bool _isSearching = false;
 
   Subscriber subscriptionService = new Subscriber();
   Feeder feeder = new Feeder();
@@ -54,7 +58,7 @@ class _HomeState extends State<MyHomePage> {
       _currentUrl = _tagsByUrls.keys.first;
       print("default main view url: $_currentUrl");
 
-      _reloadFeedItems().then((_) => null);
+      loadFeeds().then((feed) => _showFeed(feed.items));
     });
   }
 
@@ -67,10 +71,7 @@ class _HomeState extends State<MyHomePage> {
             children: _getDrawerEntries(context),
           ),
         ),
-        appBar: new AppBar(
-            title: new Text(_currentUrl != null
-                ? _tagsByUrls[_currentUrl]
-                : "No feed selected")),
+        appBar: _getAppBar(),
         body: new Builder(builder: (BuildContext context) {
           return new RefreshIndicator(
             child: getFeedListView(),
@@ -85,6 +86,59 @@ class _HomeState extends State<MyHomePage> {
             onPressed: () async => await _getAddSubscriptionDialog(context),
           );
         }));
+  }
+
+  // ========================= APP BAR
+
+  AppBar _getAppBar() {
+    if (!_isSearching) {
+      return new AppBar(
+        title: new Text(_tagsByUrls[_currentUrl] ?? "No feed selected"),
+        actions: <Widget>[
+          new IconButton(
+            icon: new Icon(Icons.search),
+            onPressed: () {
+              setState(() {
+                _isSearching = true;
+              });
+            },
+          )
+        ],
+      );
+    } else {
+      return new AppBar(
+        title: new Container(
+          constraints: new BoxConstraints.loose(new Size.fromWidth(200.0)),
+          child: new TextField(
+            onChanged: (text) async {
+              print("filter is: $text");
+              _showFeed(_feed.items
+                  .where((item) =>
+                      item.title.toLowerCase().contains(text.toLowerCase()))
+                  .toList());
+            },
+            style: new TextStyle(color: Colors.white),
+            decoration: new InputDecoration(
+              border: new UnderlineInputBorder(
+                borderSide: new BorderSide(color: Colors.white),
+              ),
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          new IconButton(
+            icon: new Icon(Icons.cancel),
+            onPressed: () async {
+              setState(() {
+                _isSearching = false;
+              });
+
+              await _selectSubscription(_currentUrl);
+            },
+          )
+        ],
+      );
+    }
   }
 
   // ========================= DRAWER
@@ -128,12 +182,20 @@ class _HomeState extends State<MyHomePage> {
 
   Future _selectSubscription(String u) async {
     _currentUrl = u;
-    await _reloadFeedItems();
+    Feed feed = await loadFeeds();
+    await _showFeed(feed.items);
+  }
+
+  Future<Feed> loadFeeds() async {
+    Feed feed = await feeder.getFeed(_currentUrl);
+    _feed = feed;
+    return feed;
   }
 
   Future _safeReloadItems(BuildContext context) async {
     try {
-      await _reloadFeedItems();
+      Feed feed = await loadFeeds();
+      await _showFeed(feed.items);
     } catch (e) {
       print("error loading feed: $e");
       Scaffold.of(context).showSnackBar(
@@ -141,17 +203,15 @@ class _HomeState extends State<MyHomePage> {
     }
   }
 
-  Future<Null> _reloadFeedItems() async {
+  Future<Null> _showFeed(List<FeedItem> feeds) async {
     if (_currentUrl == null) return null;
 
     setState(() {
       _feedItemViews.clear();
     });
 
-    Feed feed = await feeder.getFeed(_currentUrl);
-
     setState(() {
-      feed.items.forEach((item) => _feedItemViews.add(_getFeedItemView(item)));
+      feeds.forEach((item) => _feedItemViews.add(_getFeedItemView(item)));
       print("updated #${_feedItemViews.length} items");
     });
     return null;
@@ -167,7 +227,7 @@ class _HomeState extends State<MyHomePage> {
     );
   }
 
-  Widget _getFeedItemView(FeedItem feedItem) {
+  ListTile _getFeedItemView(FeedItem feedItem) {
     return new ListTile(
       title: new Text(feedItem.title),
       subtitle: new Text(feedItem.pubDate),
