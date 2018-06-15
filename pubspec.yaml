@@ -1,5 +1,5 @@
 name: yet_another_rss_feed_reader
-description: A new Flutter project.
+description: Simple Rss feed reader material app
 
 dependencies:
   feedparser: "^0.0.2"
