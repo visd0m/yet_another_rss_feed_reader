@@ -44,6 +44,7 @@ class _HomeState extends State<MyHomePage> {
   List<ListTile> _feedItemViews = [];
 
   bool _isSearching = false;
+  String _filter;
 
   Subscriber subscriptionService = new Subscriber();
   Feeder feeder = new Feeder();
@@ -76,6 +77,9 @@ class _HomeState extends State<MyHomePage> {
           return new RefreshIndicator(
             child: getFeedListView(),
             onRefresh: () async {
+              setState(() {
+                _feedItemViews.clear();
+              });
               await _safeReloadItems(context);
             },
           );
@@ -112,10 +116,9 @@ class _HomeState extends State<MyHomePage> {
           child: new TextField(
             onChanged: (text) async {
               print("filter is: $text");
-              _showFeed(_feed.items
-                  .where((item) =>
-                      item.title.toLowerCase().contains(text.toLowerCase()))
-                  .toList());
+              _filter = text;
+              _feedItemViews.clear();
+              _showFeed(_feed.items);
             },
             style: new TextStyle(color: Colors.white),
             decoration: new InputDecoration(
@@ -131,9 +134,10 @@ class _HomeState extends State<MyHomePage> {
             onPressed: () async {
               setState(() {
                 _isSearching = false;
+                _filter = null;
               });
-
-              await _selectSubscription(_currentUrl);
+              _feedItemViews.clear();
+              _showFeed(_feed.items);
             },
           )
         ],
@@ -168,6 +172,10 @@ class _HomeState extends State<MyHomePage> {
           new ListTile(
             title: new Text(_tagsByUrls[u]),
             onTap: () async {
+              setState(() {
+                _filter = null;
+                _isSearching = false;
+              });
               Navigator.pop(context);
               await _selectSubscription(u);
             },
@@ -182,11 +190,15 @@ class _HomeState extends State<MyHomePage> {
 
   Future _selectSubscription(String u) async {
     _currentUrl = u;
+    _feedItemViews.clear();
     Feed feed = await loadFeeds();
     await _showFeed(feed.items);
   }
 
   Future<Feed> loadFeeds() async {
+    if (_currentUrl == null) return null;
+
+    _feed = null;
     Feed feed = await feeder.getFeed(_currentUrl);
     _feed = feed;
     return feed;
@@ -194,6 +206,7 @@ class _HomeState extends State<MyHomePage> {
 
   Future _safeReloadItems(BuildContext context) async {
     try {
+      _feedItemViews.clear();
       Feed feed = await loadFeeds();
       await _showFeed(feed.items);
     } catch (e) {
@@ -204,14 +217,17 @@ class _HomeState extends State<MyHomePage> {
   }
 
   Future<Null> _showFeed(List<FeedItem> feeds) async {
-    if (_currentUrl == null) return null;
-
     setState(() {
       _feedItemViews.clear();
-    });
-
-    setState(() {
-      feeds.forEach((item) => _feedItemViews.add(_getFeedItemView(item)));
+      _feed.items
+          .where((item) {
+            if (_filter != null)
+              return item.title.toLowerCase().contains(_filter.toLowerCase());
+            else
+              return true;
+          })
+          .toList()
+          .forEach((item) => _feedItemViews.add(_getFeedItemView(item)));
       print("updated #${_feedItemViews.length} items");
     });
     return null;
