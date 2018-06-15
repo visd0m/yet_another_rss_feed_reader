@@ -114,6 +114,7 @@ class _HomeState extends State<MyHomePage> {
         title: new Container(
           constraints: new BoxConstraints.loose(new Size.fromWidth(200.0)),
           child: new TextField(
+            autofocus: true,
             onChanged: (text) async {
               print("filter is: $text");
               _filter = text;
