@@ -4,7 +4,7 @@ import 'package:feedparser/feedparser.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:yet_another_rss_feed_reader/feeder.dart';
-import 'package:yet_another_rss_feed_reader/subscriper.dart';
+import 'package:yet_another_rss_feed_reader/subscriber.dart';
 
 void main() => runApp(new MyApp());
 
